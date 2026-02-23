@@ -1,0 +1,8 @@
+fastapi[all]
+uvicorn
+python-multipart
+torch
+transformers
+qwen-vl-utils
+decord
+accelerate

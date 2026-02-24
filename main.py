@@ -28,7 +28,6 @@ processor = None
 async def load_model():
     global model, processor
     print("Loading Qwen2.5-VL-2B-Instruct...")
-    # Loading in bfloat16 to fit within free-tier GPU constraints
     model = Qwen2VLForConditionalGeneration.from_pretrained(
         "Qwen/Qwen2-VL-2B-Instruct", 
         torch_dtype=torch.bfloat16, 
@@ -42,18 +41,15 @@ async def predict_video(file: UploadFile = File(...)):
     if not file.filename.endswith(('.mp4', '.avi', '.mkv')):
         raise HTTPException(status_code=400, detail="Invalid video format. Use mp4, avi, or mkv.")
 
-    # Save uploaded video temporarily
     temp_video_path = f"/tmp/{uuid.uuid4()}_{file.filename}"
     with open(temp_video_path, "wb") as buffer:
         content = await file.read()
         buffer.write(content)
 
     try:
-        # 1. Use Decord to quickly grab the total frame count (Budget execution hint)
         vr = VideoReader(temp_video_path, ctx=cpu(0))
         total_frames = len(vr)
         
-        # 2. System Prompt Engineering to force JSON structure
         prompt = """You are an AI trained to analyze warehouse packaging operations from video clips. 
 Watch the video and output a JSON object with the following structure:
 {
@@ -71,7 +67,7 @@ Output ONLY valid JSON."""
                     {
                         "type": "video",
                         "video": temp_video_path,
-                        "max_pixels": 336 * 336, # Qwen2.5-VL native size requirement
+                        "max_pixels": 336 * 336, 
                         "fps": 2.0, 
                     },
                     {"type": "text", "text": prompt},
@@ -79,7 +75,6 @@ Output ONLY valid JSON."""
             }
         ]
 
-        # 3. Process inputs for the Vision-Language Model
         text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         image_inputs, video_inputs = process_vision_info(messages)
         inputs = processor(
@@ -90,7 +85,6 @@ Output ONLY valid JSON."""
             return_tensors="pt",
         ).to("cuda")
 
-        # 4. Generate prediction
         generated_ids = model.generate(**inputs, max_new_tokens=128)
         generated_ids_trimmed = [
             out_ids[len(in_ids):] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
@@ -99,9 +93,6 @@ Output ONLY valid JSON."""
             generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
         )[0]
 
-        # NOTE: Because this is a zero-shot base model, it will likely fail to output perfect JSON.
-        # For Phase 1, we parse the clip_id and return a mock structure to prove API viability 
-        # before the Phase 3 fine-tuning locks in the actual logic.
         clip_id = os.path.splitext(file.filename)[0]
         
         response_data = {

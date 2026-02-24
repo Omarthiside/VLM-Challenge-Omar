@@ -2,7 +2,6 @@ FROM pytorch/pytorch:2.1.2-cuda11.8-cudnn8-runtime
 
 WORKDIR /app
 
-# Install system dependencies for OpenCV/Decord
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     libsm6 \

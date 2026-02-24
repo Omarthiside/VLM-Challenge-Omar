@@ -17,6 +17,17 @@ Given the strict hardware constraint of free-tier GPU compute (Kaggle 2x T4 32GB
 Uniform sampling (e.g., taking 1 frame every second) fails at temporal grounding because it blindly misses the micro-actions that define operation boundaries. 
 
 Instead, this pipeline uses a **Motion-Magnitude** approach. By calculating the absolute pixel difference between consecutive frames within a $\pm0.5$ second window of the boundary, the system identifies the frames with the highest motion scores. 
+
+### Visualization: Motion-Magnitude Sampling vs Uniform Sampling
+Boundary Transition: "Tape" -> "Put Items"
+
+Time:      [t-1.0s] --- [t-0.5s] --- Boundary (t) --- [t+0.5s] --- [t+1.0s]
+Action:       [------- Tape -------]      |      [----- Put Items -----]
+Motion:         Low          High        Peak         High         Low
+
+Uniform:      [x]                     [x]                     [x]  (Misses peak action)
+Motion-Mag:                 [x] [x]  [x][x][x]  [x] [x]            (Captures boundary)
+
 * **Why it beats uniform:** The transition from "Tape" to "Put Items" involves rapid hand movement. Motion sampling guarantees the model sees the exact frames where the worker's hands change tools or items, providing the necessary visual cues for the model to learn the `anticipated_next_operation` (AA@1 metric).
 
 ## 3. Failure Mode Analysis
